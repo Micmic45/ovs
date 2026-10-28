@@ -845,7 +845,11 @@ netdev_gtpu_pop_header(struct dp_packet *packet)
         } else {
             gtpu_hlen = GTPU_HLEN;
         }
-        ip = ALIGNED_CAST(struct ip_header *, (char *)gtph + gtpu_hlen);
+        if (gtpu_hlen >= dp_packet_l4_size(packet)) {
+            goto err;
+        }
+        ip = ALIGNED_CAST(struct ip_header *,
+                          (char *) dp_packet_l4(packet) + gtpu_hlen);
 
         if (IP_VER(ip->ip_ihl_ver) == 4) {
             packet->packet_type = htonl(PT_IPV4);
