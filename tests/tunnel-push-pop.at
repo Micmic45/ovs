@@ -1616,3 +1616,36 @@ AT_CHECK([ovs-appctl ofproto/trace ovs-dummy 'in_port(int-br),dnl
 
 OVS_VSWITCHD_STOP
 AT_CLEANUP
+
+AT_SETUP([tunnel_push_pop - GTP-U decapsulation])
+
+OVS_VSWITCHD_START([add-port br0 p0 dnl
+                    -- set Interface p0 type=dummy ofport_request=1 dnl
+                                         other-config:hwaddr=aa:55:aa:55:00:00])
+AT_CHECK([ovs-vsctl add-br int-br -- set bridge int-br datapath_type=dummy])
+AT_CHECK([ovs-vsctl add-port int-br t1 -- set Interface t1 type=gtpu dnl
+                       options:remote_ip=1.1.2.92 options:key=123 dnl
+                       ofport_request=2])
+
+AT_CHECK([ovs-appctl netdev-dummy/ip4addr br0 1.1.2.88/24], [0], [OK
+])
+AT_CHECK([ovs-ofctl add-flow br0 action=normal])
+AT_CHECK([ovs-ofctl add-flow int-br "in_port=t1,ipv6,actions=drop"])
+AT_CHECK([ovs-appctl revalidator/wait])
+
+dnl G-PDU carrying an IPv6 packet.
+AT_CHECK([ovs-appctl netdev-dummy/receive p0 'aa55aa550000001b213cab6408004500004c00010000401173eb0101025c0101025812b508680038000030ff00280000007b6000000000003a402001000000000000000000000000000120010000000000000000000000000002'])
+
+dnl G-PDU with the S flag set, truncated before the optional fields.
+AT_CHECK([ovs-appctl netdev-dummy/receive p0 'aa55aa550000001b213cab6408004500002400010000401174130101025c0101025812b508680010000032ff00040000007b'])
+
+ovs-appctl time/warp 1000
+ovs-appctl time/warp 1000
+
+AT_CHECK([ovs-ofctl dump-flows int-br | ofctl_strip | grep ipv6], [0], [dnl
+ n_packets=1, n_bytes=40, ipv6,in_port=2 actions=drop
+])
+CHECK_COVERAGE([datapath_drop_tunnel_pop_error], [1])
+
+OVS_VSWITCHD_STOP
+AT_CLEANUP
