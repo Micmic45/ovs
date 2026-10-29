@@ -3316,7 +3316,7 @@ repl_ftp_v4_addr(struct dp_packet *pkt, ovs_be32 v4_addr_rep,
 static char *
 skip_non_digits(char *str)
 {
-    while (!isdigit(*str) && *str != 0) {
+    while (!isdigit((unsigned char) *str) && *str != 0) {
         str++;
     }
     return str;
@@ -3326,7 +3326,7 @@ static char *
 terminate_number_str(char *str, uint8_t max_digits)
 {
     uint8_t digits_found = 0;
-    while (isdigit(*str) && digits_found <= max_digits) {
+    while (isdigit((unsigned char) *str) && digits_found <= max_digits) {
         str++;
         digits_found++;
     }
@@ -3427,7 +3427,7 @@ process_ftp_ctl_v4(struct conntrack *ct,
 
     /* EPRT, verify address family. */
     if (extended && mode == CT_FTP_MODE_ACTIVE) {
-        if (ftp[0] != FTP_AF_V4 || isdigit(ftp[1])) {
+        if (ftp[0] != FTP_AF_V4 || isdigit((unsigned char) ftp[1])) {
             return CT_FTP_CTL_INVALID;
         }
 
@@ -3444,7 +3444,7 @@ process_ftp_ctl_v4(struct conntrack *ct,
 
         /* Advance to end of IP address, to terminate it. */
         while (*ftp) {
-            if (!isdigit(*ftp) && *ftp != '.') {
+            if (!isdigit((unsigned char) *ftp) && *ftp != '.') {
                 break;
             }
             ftp++;
@@ -3488,7 +3488,7 @@ process_ftp_ctl_v4(struct conntrack *ct,
         ftp++;
         save_ftp = ftp;
         bool digit_found = false;
-        while (isdigit(*ftp)) {
+        while (isdigit((unsigned char) *ftp)) {
             ftp++;
             digit_found = true;
         }
@@ -3559,7 +3559,7 @@ process_ftp_ctl_v4(struct conntrack *ct,
 static char *
 skip_ipv6_digits(char *str)
 {
-    while (isxdigit(*str) || *str == ':' || *str == '.') {
+    while (isxdigit((unsigned char) *str) || *str == ':' || *str == '.') {
         str++;
     }
     return str;
@@ -3585,7 +3585,7 @@ process_ftp_ctl_v6(struct conntrack *ct,
     if (!strncasecmp(ftp, FTP_EPRT_CMD, strlen(FTP_EPRT_CMD))) {
         ftp = ftp_msg + strlen(FTP_EPRT_CMD);
         ftp = skip_non_digits(ftp);
-        if (*ftp != FTP_AF_V6 || isdigit(ftp[1])) {
+        if (*ftp != FTP_AF_V6 || isdigit((unsigned char) ftp[1])) {
             return CT_FTP_CTL_INVALID;
         }
         /* Jump over delimiter. */
@@ -3606,7 +3606,7 @@ process_ftp_ctl_v6(struct conntrack *ct,
     } else {
         ftp = ftp_msg + strcspn(ftp_msg, "(");
         ftp = skip_non_digits(ftp);
-        if (!isdigit(*ftp)) {
+        if (!isdigit((unsigned char) *ftp)) {
             return CT_FTP_CTL_INVALID;
         }
 
