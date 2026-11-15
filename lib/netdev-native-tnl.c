@@ -656,6 +656,10 @@ netdev_erspan_pop_header(struct dp_packet *packet)
         goto err;
     }
 
+    if (ulen + ERSPAN_GREHDR_LEN + sizeof *ersh > dp_packet_size(packet)) {
+        goto err;
+    }
+
     greh_protocol = ntohs(greh->protocol);
     if (greh_protocol != ETH_TYPE_ERSPAN1 &&
         greh_protocol != ETH_TYPE_ERSPAN2) {
@@ -673,21 +677,25 @@ netdev_erspan_pop_header(struct dp_packet *packet)
     if (ersh->ver == 1) {
         ovs_16aligned_be32 *index = ALIGNED_CAST(ovs_16aligned_be32 *,
                                                  ersh + 1);
+
+        hlen = ulen + ERSPAN_GREHDR_LEN + sizeof *ersh + ERSPAN_V1_MDSIZE;
+        if (hlen > dp_packet_size(packet)) {
+            goto err;
+        }
         tnl->erspan_idx = ntohl(get_16aligned_be32(index));
         tnl->flags |= FLOW_TNL_F_KEY;
-        hlen = ulen + ERSPAN_GREHDR_LEN + sizeof *ersh + ERSPAN_V1_MDSIZE;
     } else if (ersh->ver == 2) {
         struct erspan_md2 *md2 = ALIGNED_CAST(struct erspan_md2 *, ersh + 1);
+
+        hlen = ulen + ERSPAN_GREHDR_LEN + sizeof *ersh + ERSPAN_V2_MDSIZE;
+        if (hlen > dp_packet_size(packet)) {
+            goto err;
+        }
         tnl->erspan_dir = md2->dir;
         tnl->erspan_hwid = get_hwid(md2);
         tnl->flags |= FLOW_TNL_F_KEY;
-        hlen = ulen + ERSPAN_GREHDR_LEN + sizeof *ersh + ERSPAN_V2_MDSIZE;
     } else {
         VLOG_WARN_RL(&err_rl, "ERSPAN version error %d", ersh->ver);
-        goto err;
-    }
-
-    if (hlen > dp_packet_size(packet)) {
         goto err;
     }
 
