@@ -3796,6 +3796,23 @@ raft_handle_append_reply(struct raft *raft,
     if (rpy->result == RAFT_APPEND_OK) {
         /* Figure 3.1: "If successful, update nextIndex and matchIndex for
          * follower (section 3.5)." */
+
+        /* A follower can only acknowledge entries that we actually sent it, so
+         * 'prev_log_index + n_entries' cannot exceed the index of our last log
+         * entry.  Reject a reply that claims otherwise, including the case
+         * where the sum overflows: trusting it would push 'next_index' past
+         * 'log_end' and cause an out-of-bounds read of 'raft->entries[]' the
+         * next time we build an AppendEntries request for this server. */
+        if (rpy->prev_log_index >= raft->log_end
+            || rpy->n_entries > raft->log_end - 1 - rpy->prev_log_index) {
+            static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(5, 5);
+            VLOG_WARN_RL(&rl, "%s: ignoring append_reply with out-of-range "
+                         "index (prev_log_index=%"PRIu64", n_entries=%u, "
+                         "log_end=%"PRIu64")", s->nickname,
+                         rpy->prev_log_index, rpy->n_entries, raft->log_end);
+            return;
+        }
+
         uint64_t min_index = rpy->prev_log_index + rpy->n_entries + 1;
         if (s->next_index < min_index) {
             s->next_index = min_index;
