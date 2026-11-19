@@ -126,7 +126,8 @@ process_received_bpdu__(struct rstp_port *p, const void *bpdu_,
      * state machines will effectively treat the RST BPDU as if it were a
      * Configuration BPDU.
      */
-    if (bpdu->bpdu_type == RAPID_SPANNING_TREE_BPDU) {
+    if (bpdu_size >= RAPID_SPANNING_TREE_BPDU_SIZE
+        && bpdu->bpdu_type == RAPID_SPANNING_TREE_BPDU) {
         uint8_t role = (bpdu->flags & ROLE_FLAG_MASK) >> ROLE_FLAG_SHIFT;
 
         if (role == PORT_UNKN) {
@@ -138,7 +139,10 @@ process_received_bpdu__(struct rstp_port *p, const void *bpdu_,
         p->rcvd_bpdu = true;
         p->rx_rstp_bpdu_cnt++;
 
-        memcpy(&p->received_bpdu_buffer, bpdu, sizeof(struct rstp_bpdu));
+        /* Configuration and TCN BPDUs are shorter than an RST BPDU. */
+        memset(&p->received_bpdu_buffer, 0, sizeof p->received_bpdu_buffer);
+        memcpy(&p->received_bpdu_buffer, bpdu,
+               MIN(bpdu_size, sizeof p->received_bpdu_buffer));
 
         rstp->changes = true;
         move_rstp__(rstp);
