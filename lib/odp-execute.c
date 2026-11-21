@@ -374,8 +374,8 @@ odp_set_nd(struct dp_packet *packet, const struct ovs_key_nd *key,
                 break;
             }
 
-            lla_opt += lla_opt->len;
             bytes_remain -= lla_opt->len * ND_LLA_OPT_LEN;
+            lla_opt += lla_opt->len;
         }
 
         packet_set_nd(packet,

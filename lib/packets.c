@@ -1707,8 +1707,8 @@ packet_set_nd(struct dp_packet *packet, const struct in6_addr *target,
             break;
         }
 
-        opt += opt->len;
         bytes_remain -= opt->len * ND_LLA_OPT_LEN;
+        opt += opt->len;
     }
 }
 
